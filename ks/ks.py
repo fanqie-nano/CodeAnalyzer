@@ -184,11 +184,11 @@ def main(sourcePath):
 		if isBreak:
 			break
 
-	count = 0
-	for i in retList:
+	result = Image.new('L', (200, 50))
+	for k, i in enumerate(retList):
 		if i is not None:
-			count += 1
-			i[0].img.save('tmp/%s.jpg'%count)
+			result.paste(i[0].img, (k * 50, 0, k * 50 + 50, 50))
+	result.save('result.jpg')
 
 if __name__ == '__main__':
 	main('cap_union_new_getcapbysig.jpeg')
