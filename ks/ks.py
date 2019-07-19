@@ -4,11 +4,16 @@
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+import os
 from PIL import Image, ImageDraw
 import cv2
 import copy
 import numpy as np
 import selectivesearch
+from keras.models import load_model
+from keras.preprocessing.image import load_img, img_to_array
+
+INPUT_SHAPE = (28, 28, 1)
 
 class ImageInfo(object):
 
@@ -155,14 +160,43 @@ def main(sourcePath):
 	template.save('template.jpg')
 	target.save('target.jpg')
 
+	templateImgList = []
 	templateList = splitWord(template, 50)
-	# for k, i in enumerate(templateList):
-	# 	i.img.save('tmp/template_%s.jpg'%k)
+	for k, i in enumerate(templateList):
+		fn = 'tmp/%s_template_%s.jpg'%(os.path.basename(sourcePath).split('.')[0], k)
+		i.img.save(fn)
+		templateImgList.append(fn)
+	targetImgList = []
 	targetList = splitWord(target, 50)
-	# for k, i in enumerate(targetList):
-	# 	i.img.save('tmp/target_%s.jpg'%k)
+	for k, i in enumerate(targetList):
+		fn = 'tmp/%s_target_%s.jpg'%(os.path.basename(sourcePath).split('.')[0], k)
+		i.img.save(fn)
+		targetImgList.append(fn)
 
+	encoder = load_model('encoder_model.h5')
 
+	retList = []
+	for k, v in enumerate(targetImgList):
+		similary = []
+		img = img_to_array(load_img(v, target_size = INPUT_SHAPE, color_mode = 'grayscale'))
+		img = img.astype('float32') / 255.
+		dev = encoder.predict(np.array([img]))
+		for a, b in enumerate(templateImgList):
+			imgb = img_to_array(load_img(b, target_size = INPUT_SHAPE, color_mode = 'grayscale'))
+			imgb = imgb.astype('float32') / 255.
+			devb = encoder.predict(np.array([imgb]))
+			dist2 = np.sqrt(np.sum(np.square(dev - devb)))
+			templateList[a].sim = dist2
+			similary.append(templateList[a])
+		similary = sorted(similary, key = lambda x: x.sim, reverse = False)
+		retList.append(similary[0])
+
+	result = Image.new('L', (200, 50))
+	for k, i in enumerate(retList):
+		if i is not None:
+			result.paste(i.img, (k * 50, 0, k * 50 + 50, 50))
+	result.save('result.jpg')
+	'''
 	retList = [None, None, None, None]
 	for k, v in enumerate(targetList):
 		similary = []
@@ -189,6 +223,14 @@ def main(sourcePath):
 		if i is not None:
 			result.paste(i[0].img, (k * 50, 0, k * 50 + 50, 50))
 	result.save('result.jpg')
+	'''
 
 if __name__ == '__main__':
 	main('cap_union_new_getcapbysig.jpeg')
+	# from glob import glob
+	# fileList = glob('test_data/*.jpg')
+	# fileList.sort()
+	# num = 0
+	# for fn in fileList:
+	# 	main(fn)
+	# 	print fn
